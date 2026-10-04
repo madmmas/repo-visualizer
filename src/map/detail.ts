@@ -2,6 +2,7 @@ import type { Edge, ParsedFile } from "../parser/types.ts";
 import { categoriesOf, fileKind, type Category, type FileKind } from "./categories.ts";
 import { foldFiles } from "./fold.ts";
 import { compare } from "./order.ts";
+import { reachedBy } from "./reached.ts";
 
 export type CountedPath = {
   path: string;
@@ -21,10 +22,12 @@ export type RepoSummary = {
 
 export type FileDetail = {
   path: string;
+  folder: string;
   kind: FileKind;
   lines: number;
   dependsOn: string[];
   dependedOnBy: string[];
+  reachedBy: string;
 };
 
 export type FolderDetail = {
@@ -94,10 +97,12 @@ export function fileDetail(
   }
   return {
     path,
+    folder: file.folder,
     kind: fileKind(path),
     lines: file.lines,
     dependsOn,
     dependedOnBy,
+    reachedBy: reachedBy(path),
   };
 }
 

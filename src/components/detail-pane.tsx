@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fileDetail, folderDetail, repoSummary } from "@/map/detail";
 import type { Selection } from "@/map/scene";
+import { walkFrom, type WalkDirection } from "@/map/walk";
 import type { Edge, ParsedFile } from "@/parser/types";
 import { useHighlight } from "./map-highlight";
 
@@ -35,6 +36,10 @@ export function DetailPane({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const { hovered } = useHighlight();
+  const [walk, setWalk] = useState<WalkDirection | null>(null);
+  function chooseWalk(direction: WalkDirection) {
+    setWalk((current) => (current === direction ? null : direction));
+  }
   const summary = useMemo(
     () => repoSummary({ name, framework, files, imports, routes }),
     [name, framework, files, imports, routes],
@@ -42,6 +47,14 @@ export function DetailPane({
   const file = useMemo(
     () => (selected?.kind === "file" ? fileDetail(files, edges, selected.path) : null),
     [files, edges, selected],
+  );
+  const blast = useMemo(
+    () => (file ? walkFrom(edges, file.path, "dependents") : []),
+    [file, edges],
+  );
+  const chain = useMemo(
+    () => (file ? walkFrom(edges, file.path, "dependencies") : []),
+    [file, edges],
   );
   const folder = useMemo(
     () => (selected?.kind === "node" ? folderDetail(files, edges, selected.path) : null),
@@ -88,6 +101,14 @@ export function DetailPane({
 
   return (
     <div ref={rootRef} className="flex min-h-full flex-col text-xs">
+      <div className="pt-2">
+        <p className="px-2 text-muted">{file ? "file" : "folder"}</p>
+        {file ? (
+          <PathButton path={file.path} onSelectFile={onSelectFile} />
+        ) : folder ? (
+          <FolderHeading path={folder.path} label={heading} />
+        ) : null}
+      </div>
       <div className="sticky top-0 z-10 flex gap-3 border-b border-border bg-surface px-2" role="tablist">
         <TabButton id="structure" active={tab === "structure"} onTab={onTab}>
           Structure
@@ -98,37 +119,78 @@ export function DetailPane({
       </div>
       {tab === "explanation" ? (
         <div role="tabpanel" className="py-2">
-          {file ? (
-            <PathButton path={file.path} onSelectFile={onSelectFile} />
-          ) : folder ? (
-            <FolderHeading path={folder.path} label={heading} />
-          ) : null}
-          <p className="mt-2 px-2 text-pretty text-muted">No explanation yet.</p>
+          <p className="px-2 text-pretty text-muted">No explanation yet.</p>
         </div>
       ) : file ? (
         <div role="tabpanel" className="py-2">
-          <PathButton path={file.path} onSelectFile={onSelectFile} />
-          <p className="mt-2 flex items-center gap-1.5 px-2">
-            <span className="size-2 shrink-0" style={{ backgroundColor: file.kind.color }} aria-hidden />
-            {file.kind.name}
-          </p>
-          <p className="px-2 tabular-nums text-muted">{file.lines} lines</p>
-          <NeighbourList
-            title="Depends on"
-            tone="outgoing"
-            paths={file.dependsOn}
-            onSelectFile={onSelectFile}
-          />
-          <NeighbourList
-            title="Depended on by"
-            tone="incoming"
-            paths={file.dependedOnBy}
-            onSelectFile={onSelectFile}
-          />
+          <dl>
+            <Fact term="Kind">
+              <span className="inline-flex items-center gap-1.5 font-mono">
+                <span className="size-2 shrink-0" style={{ backgroundColor: file.kind.color }} aria-hidden />
+                {file.kind.id}
+              </span>
+            </Fact>
+            <Fact term="Folder">
+              <span className="font-mono">{file.folder}</span>
+            </Fact>
+            <Fact term="Length">
+              <span className="tabular-nums">{file.lines} lines</span>
+            </Fact>
+            <Fact term="Depends on">
+              <span className="tabular-nums">{filesLabel(file.dependsOn.length)}</span>
+            </Fact>
+            <Fact term="Depended on by">
+              <span className="tabular-nums">{filesLabel(file.dependedOnBy.length)}</span>
+            </Fact>
+            <Fact term="Reached by">{file.reachedBy}</Fact>
+          </dl>
+          <div role="radiogroup" aria-label="Walk" className="mt-3 flex gap-2 border-t border-border px-2 pt-3">
+            <WalkOption
+              label="Blast radius"
+              checked={walk === "dependents"}
+              onSelect={() => chooseWalk("dependents")}
+            />
+            <WalkOption
+              label="Dependency chain"
+              checked={walk === "dependencies"}
+              onSelect={() => chooseWalk("dependencies")}
+            />
+          </div>
+          {walk === "dependents" ? (
+            <WalkSteps
+              title="Blast radius"
+              description="what breaks if this file changes, directly or through others"
+              tone="incoming"
+              steps={blast}
+              onSelectFile={onSelectFile}
+            />
+          ) : walk === "dependencies" ? (
+            <WalkSteps
+              title="Dependency chain"
+              description="what this imports, directly or through others"
+              tone="outgoing"
+              steps={chain}
+              onSelectFile={onSelectFile}
+            />
+          ) : (
+            <>
+              <NeighbourList
+                title="Imports"
+                tone="outgoing"
+                paths={file.dependsOn}
+                onSelectFile={onSelectFile}
+              />
+              <NeighbourList
+                title="Imported by"
+                tone="incoming"
+                paths={file.dependedOnBy}
+                onSelectFile={onSelectFile}
+              />
+            </>
+          )}
         </div>
       ) : folder ? (
         <div role="tabpanel" className="py-2">
-          <FolderHeading path={folder.path} label={heading} />
           <FolderKinds folder={folder} />
         </div>
       ) : null}
@@ -147,6 +209,19 @@ function FolderHeading({ path, label }: { path: string; label: string }) {
     >
       {label}
     </p>
+  );
+}
+
+function filesLabel(count: number): string {
+  return count === 1 ? "1 file" : `${String(count)} files`;
+}
+
+function Fact({ term, children }: { term: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-3 px-2 py-0.5">
+      <dt className="w-28 shrink-0 text-muted">{term}</dt>
+      <dd className="ml-auto min-w-0 break-all text-right">{children}</dd>
+    </div>
   );
 }
 
@@ -211,6 +286,70 @@ function PathSection({
   );
 }
 
+function WalkOption({
+  label,
+  checked,
+  onSelect,
+}: {
+  label: string;
+  checked: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      className={`border px-2 py-1 ${checked ? "border-accent" : "border-border"}`}
+      onClick={onSelect}
+    >
+      {label}
+    </button>
+  );
+}
+
+function WalkSteps({
+  title,
+  description,
+  tone,
+  steps,
+  onSelectFile,
+}: {
+  title: string;
+  description: string;
+  tone: "incoming" | "outgoing";
+  steps: readonly (readonly string[])[];
+  onSelectFile: (path: string) => void;
+}) {
+  const total = steps.reduce((sum, step) => sum + step.length, 0);
+  const toneClass = tone === "incoming" ? "text-incoming" : "text-outgoing";
+  return (
+    <section className="mt-3">
+      <div className="flex items-baseline gap-3 px-2">
+        <h3 className="w-24 shrink-0">{title}</h3>
+        <p className="min-w-0 flex-1 text-pretty text-muted">{description}</p>
+        <span className={`shrink-0 tabular-nums ${toneClass}`}>{total}</span>
+      </div>
+      {steps.map((paths, index) => (
+        <div key={index} className="mt-2">
+          <h4 className="px-2 text-muted">
+            {index === 0 ? "1 step away" : `${String(index + 1)} steps away`}
+            <span className="px-1">·</span>
+            <span className="tabular-nums">{paths.length}</span>
+          </h4>
+          <ul className="mt-1">
+            {paths.map((path) => (
+              <li key={path}>
+                <PathButton path={path} onSelectFile={onSelectFile} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function NeighbourList({
   title,
   tone,
@@ -223,19 +362,24 @@ function NeighbourList({
   onSelectFile: (path: string) => void;
 }) {
   const toneClass = tone === "incoming" ? "text-incoming" : "text-outgoing";
+  const mark = tone === "incoming" ? `←${String(paths.length)}` : `${String(paths.length)}→`;
   return (
     <section className="mt-3">
       <h3 className="flex items-baseline gap-2 px-2">
         {title}
-        <span className={`ml-auto tabular-nums ${toneClass}`}>{paths.length}</span>
+        <span className={`ml-auto tabular-nums ${toneClass}`}>{mark}</span>
       </h3>
-      <ul className="mt-1">
-        {paths.map((path) => (
-          <li key={path}>
-            <PathButton path={path} onSelectFile={onSelectFile} />
-          </li>
-        ))}
-      </ul>
+      {paths.length === 0 ? (
+        <p className="px-2 text-muted">None.</p>
+      ) : (
+        <ul className="mt-1">
+          {paths.map((path) => (
+            <li key={path}>
+              <PathButton path={path} onSelectFile={onSelectFile} />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

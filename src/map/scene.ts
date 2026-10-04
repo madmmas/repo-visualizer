@@ -31,6 +31,8 @@ export type SceneNode = {
   selected: boolean;
   dimmed: boolean;
   swatch: string | null;
+  matches: number | null;
+  matchColor: string | null;
   rows: SceneRow[];
   paths: string[];
   windowStart: number;
@@ -58,6 +60,7 @@ export function buildScene(input: {
   open: readonly string[];
   selected: Selection | null;
   windows: Readonly<Record<string, number>>;
+  categoryId: string | null;
 }): Scene {
   const fold = foldFiles(input.files, input.edges);
   const open = new Set(input.open);
@@ -87,6 +90,9 @@ export function buildScene(input: {
   }
 
   const lit = litSets(input.selected, input.edges, filesOf, nodeOf);
+  const categoryFiles = filesInCategory(input.files, input.categoryId);
+  const matchColor =
+    input.categoryId === null ? null : fileKind(swatchPath(input.categoryId)).color;
   const sizes = fold.nodes.map((node) => {
     const isOpen = open.has(node.path);
     const start = isOpen ? clampWindow(input.windows[node.path] ?? 0, node.files.length) : 0;
@@ -110,6 +116,7 @@ export function buildScene(input: {
     if (!position) throw new Error(`layout missed ${item.node.path}`);
     const swatch = sharedSwatch(item.node.files);
     const selectedNode = input.selected?.kind === "node" && input.selected.path === item.node.path;
+    const matches = categoryFiles === null ? null : countMatches(item.node.files, categoryFiles);
     return {
       id: item.node.path,
       x: position.x,
@@ -122,8 +129,12 @@ export function buildScene(input: {
       fanOut: item.node.fanOut,
       open: open.has(item.node.path),
       selected: selectedNode,
-      dimmed: lit.nodes !== null && !lit.nodes.has(item.node.path),
+      dimmed:
+        (lit.nodes !== null && !lit.nodes.has(item.node.path)) ||
+        (matches !== null && matches === 0),
       swatch,
+      matches,
+      matchColor,
       paths: item.node.files.map((file) => file.path),
       windowStart: item.start,
       rows: item.isOpen
@@ -132,7 +143,9 @@ export function buildScene(input: {
             label: labels.get(file.path) ?? file.path,
             swatch: fileKind(file.path).color,
             selected: input.selected?.kind === "file" && input.selected.path === file.path,
-            dimmed: lit.files !== null && !lit.files.has(file.path),
+            dimmed:
+              (lit.files !== null && !lit.files.has(file.path)) ||
+              (categoryFiles !== null && !categoryFiles.has(file.path)),
           }))
         : [],
     };
@@ -140,7 +153,15 @@ export function buildScene(input: {
 
   return {
     nodes,
-    edges: sceneEdges(input.edges, input.selected, filesOf, nodeOf, open, visibleFiles),
+    edges: sceneEdges(
+      input.edges,
+      input.selected,
+      filesOf,
+      nodeOf,
+      open,
+      visibleFiles,
+      categoryFiles,
+    ),
   };
 }
 
@@ -231,6 +252,30 @@ function litSets(
   return { nodes: litNodes, files: litFiles };
 }
 
+function filesInCategory(
+  files: readonly ParsedFile[],
+  categoryId: string | null,
+): Set<string> | null {
+  if (categoryId === null) return null;
+  const matched = new Set<string>();
+  for (const file of files) {
+    if (fileKind(file.path).id === categoryId) matched.add(file.path);
+  }
+  return matched;
+}
+
+function swatchPath(categoryId: string): string {
+  return categoryId === "(none)" ? "file" : `file${categoryId}`;
+}
+
+function countMatches(files: readonly ParsedFile[], matched: Set<string>): number {
+  let count = 0;
+  for (const file of files) {
+    if (matched.has(file.path)) count += 1;
+  }
+  return count;
+}
+
 function sceneEdges(
   edges: readonly Edge[],
   selected: Selection | null,
@@ -238,6 +283,7 @@ function sceneEdges(
   nodeOf: Map<string, string>,
   open: Set<string>,
   visibleFiles: Map<string, ParsedFile[]>,
+  categoryFiles: Set<string> | null,
 ): SceneEdge[] {
   const selectedFiles =
     selected?.kind === "node" ? (filesOf.get(selected.path) ?? new Set<string>()) : null;
@@ -257,11 +303,16 @@ function sceneEdges(
       if (collapsed || bothHidden) continue;
     }
     const tone = edgeTone(edge, selected, selectedFiles);
-    const dimmed =
+    const onSelection =
       selected !== null &&
-      !(selected.kind === "file"
+      (selected.kind === "file"
         ? edge.from === selected.path || edge.to === selected.path
         : (selectedFiles?.has(edge.from) ?? false) || (selectedFiles?.has(edge.to) ?? false));
+    const inCategory =
+      categoryFiles !== null &&
+      categoryFiles.has(edge.from) &&
+      categoryFiles.has(edge.to);
+    const dimmed = (selected !== null && !onSelection) || (categoryFiles !== null && !inCategory);
     const id = `${source.nodeId}|${source.handle}|${target.nodeId}|${target.handle}|${tone}|${dimmed ? "dim" : "lit"}`;
     if (drawn.has(id)) continue;
     drawn.set(id, {

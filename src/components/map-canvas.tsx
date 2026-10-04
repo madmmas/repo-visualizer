@@ -24,6 +24,7 @@ export function MapCanvas({
   edges,
   rootName,
   selected,
+  categoryId,
   onSelect,
   selectFileRef,
 }: {
@@ -31,6 +32,7 @@ export function MapCanvas({
   edges: readonly Edge[];
   rootName: string;
   selected: Selection | null;
+  categoryId: string | null;
   onSelect: (selection: Selection | null) => void;
   selectFileRef: React.RefObject<(path: string) => void>;
 }) {
@@ -41,6 +43,7 @@ export function MapCanvas({
         edges={edges}
         rootName={rootName}
         selected={selected}
+        categoryId={categoryId}
         onSelect={onSelect}
         selectFileRef={selectFileRef}
       />
@@ -53,6 +56,7 @@ function MapView({
   edges,
   rootName,
   selected,
+  categoryId,
   onSelect,
   selectFileRef,
 }: {
@@ -60,6 +64,7 @@ function MapView({
   edges: readonly Edge[];
   rootName: string;
   selected: Selection | null;
+  categoryId: string | null;
   onSelect: (selection: Selection | null) => void;
   selectFileRef: React.RefObject<(path: string) => void>;
 }) {
@@ -80,8 +85,9 @@ function MapView({
         open: [...open].sort(),
         selected,
         windows,
+        categoryId,
       }),
-    [files, edges, rootName, open, selected, windows],
+    [files, edges, rootName, open, selected, windows, categoryId],
   );
 
   useEffect(() => {
@@ -290,6 +296,8 @@ function toFlowNode(node: SceneNode): FolderFlowNode {
       selected: node.selected,
       dimmed: node.dimmed,
       swatch: node.swatch,
+      matches: node.matches,
+      matchColor: node.matchColor,
       rows: node.rows,
       paths: node.paths,
       windowStart: node.windowStart,

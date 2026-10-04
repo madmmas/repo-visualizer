@@ -17,6 +17,8 @@ export type FolderNodeData = {
   selected: boolean;
   dimmed: boolean;
   swatch: string | null;
+  matches: number | null;
+  matchColor: string | null;
   rows: SceneRow[];
   paths: string[];
   windowStart: number;
@@ -25,6 +27,19 @@ export type FolderNodeData = {
 export type FolderFlowNode = Node<FolderNodeData, "folder">;
 
 const handleClass = "!size-px !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0";
+
+function MatchCount({ matches, color }: { matches: number | null; color: string | null }) {
+  if (matches === null) return null;
+  return (
+    <span
+      className={`shrink-0 tabular-nums text-xs ${matches === 0 ? "text-muted" : ""}`}
+      style={matches > 0 && color ? { color } : undefined}
+      aria-label={`${matches} matching`}
+    >
+      {matches}
+    </span>
+  );
+}
 
 const lit = "bg-[color-mix(in_srgb,var(--accent)_16%,transparent)]";
 
@@ -80,7 +95,8 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
               aria-hidden
             />
           ) : null}
-          <span className="font-mono text-xs">{data.label}</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-xs">{data.label}</span>
+          <MatchCount matches={data.matches} color={data.matchColor} />
         </button>
         <Handle type="source" position={Position.Right} id="out" className={handleClass} />
       </div>
@@ -105,6 +121,7 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
           }}
         >
           <span className="min-w-0 flex-1 truncate font-mono">{data.label}</span>
+          <MatchCount matches={data.matches} color={data.matchColor} />
           <span className="shrink-0 tabular-nums text-muted">{data.fileCount}</span>
           <span className="shrink-0 tabular-nums text-incoming">in {data.fanIn}</span>
           <span className="shrink-0 tabular-nums text-outgoing">out {data.fanOut}</span>
