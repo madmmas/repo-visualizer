@@ -14,25 +14,79 @@ export type Database = {
     Tables: {
       analyses: {
         Row: {
+          adapter: string | null;
+          commit_sha: string | null;
+          coverage_percent: number | null;
           created_at: string;
+          failure: string | null;
+          files_found: number | null;
+          files_parsed: number | null;
+          files_skipped: number | null;
           id: number;
+          imports_resolved: number | null;
+          imports_seen: number | null;
+          imports_unresolved: number | null;
+          analysed_at: string | null;
           organization_id: string;
           repository: string;
+          repository_bytes: number | null;
+          repository_files: number | null;
+          repository_key: string;
+          stage: string | null;
+          stage_message: string | null;
+          started_at: string | null;
           state: string;
+          updated_at: string;
         };
         Insert: {
+          adapter?: string | null;
+          commit_sha?: string | null;
+          coverage_percent?: number | null;
           created_at?: string;
+          failure?: string | null;
+          files_found?: number | null;
+          files_parsed?: number | null;
+          files_skipped?: number | null;
           id?: never;
+          imports_resolved?: number | null;
+          imports_seen?: number | null;
+          imports_unresolved?: number | null;
+          analysed_at?: string | null;
           organization_id: string;
           repository: string;
+          repository_bytes?: number | null;
+          repository_files?: number | null;
+          repository_key: string;
+          stage?: string | null;
+          stage_message?: string | null;
+          started_at?: string | null;
           state: string;
+          updated_at?: string;
         };
         Update: {
+          adapter?: string | null;
+          commit_sha?: string | null;
+          coverage_percent?: number | null;
           created_at?: string;
+          failure?: string | null;
+          files_found?: number | null;
+          files_parsed?: number | null;
+          files_skipped?: number | null;
           id?: never;
+          imports_resolved?: number | null;
+          imports_seen?: number | null;
+          imports_unresolved?: number | null;
+          analysed_at?: string | null;
           organization_id?: string;
           repository?: string;
+          repository_bytes?: number | null;
+          repository_files?: number | null;
+          repository_key?: string;
+          stage?: string | null;
+          stage_message?: string | null;
+          started_at?: string | null;
           state?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -46,16 +100,31 @@ export type Database = {
       };
       edges: {
         Row: {
+          analysis_id: number;
+          from_path: string;
           id: number;
+          kind: string;
           organization_id: string;
+          specifier: string;
+          to_path: string;
         };
         Insert: {
+          analysis_id: number;
+          from_path: string;
           id?: never;
+          kind: string;
           organization_id: string;
+          specifier: string;
+          to_path: string;
         };
         Update: {
+          analysis_id?: number;
+          from_path?: string;
           id?: never;
+          kind?: string;
           organization_id?: string;
+          specifier?: string;
+          to_path?: string;
         };
         Relationships: [
           {
@@ -115,16 +184,37 @@ export type Database = {
       };
       files: {
         Row: {
+          analysis_id: number;
+          fan_in: number;
+          fan_out: number;
+          folder: string;
+          hash: string;
           id: number;
+          lines: number;
           organization_id: string;
+          path: string;
         };
         Insert: {
+          analysis_id: number;
+          fan_in: number;
+          fan_out: number;
+          folder: string;
+          hash: string;
           id?: never;
+          lines: number;
           organization_id: string;
+          path: string;
         };
         Update: {
+          analysis_id?: number;
+          fan_in?: number;
+          fan_out?: number;
+          folder?: string;
+          hash?: string;
           id?: never;
+          lines?: number;
           organization_id?: string;
+          path?: string;
         };
         Relationships: [
           {

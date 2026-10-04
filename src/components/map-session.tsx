@@ -4,8 +4,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { categoriesOf } from "@/map/categories";
 import type { Selection } from "@/map/scene";
 import type { Edge, ParsedFile } from "@/parser/types";
+import { isPartial } from "@/analysis/coverage";
 import { CanvasShell } from "./canvas-shell";
 import { CategoryRail } from "./category-rail";
+import { CoverageBanner } from "./coverage-banner";
 import { DetailPane, type DetailTab } from "./detail-pane";
 import { HighlightProvider } from "./map-highlight";
 import { InsightsPanel } from "./insights-panel";
@@ -18,6 +20,7 @@ export function MapSession({
   framework,
   imports,
   routes,
+  coveragePercent,
 }: {
   files: readonly ParsedFile[];
   edges: readonly Edge[];
@@ -25,6 +28,7 @@ export function MapSession({
   framework: string;
   imports: number;
   routes: number;
+  coveragePercent: number | null;
 }) {
   const [selected, setSelected] = useState<Selection | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -48,15 +52,26 @@ export function MapSession({
           </>
         }
         map={
-          <MapCanvas
-            files={files}
-            edges={edges}
-            rootName={rootName}
-            selected={selected}
-            categoryId={categoryId}
-            onSelect={setSelected}
-            selectFileRef={selectFileRef}
-          />
+          <div className="flex h-full min-h-0 flex-col">
+            {coveragePercent !== null && isPartial(coveragePercent) ? (
+              <CoverageBanner percent={coveragePercent} />
+            ) : null}
+            <div className="min-h-0 flex-1">
+              {files.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-muted">No files stored.</p>
+              ) : (
+              <MapCanvas
+                files={files}
+                edges={edges}
+                rootName={rootName}
+                selected={selected}
+                categoryId={categoryId}
+                onSelect={setSelected}
+                selectFileRef={selectFileRef}
+              />
+              )}
+            </div>
+          </div>
         }
         detail={
           <DetailPane

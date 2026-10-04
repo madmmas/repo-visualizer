@@ -28,11 +28,11 @@ export type Walk = {
 // adapter has no framework entry points, and a file nothing imports is still
 // part of the map. Hidden, dependency, and build directories are left out as
 // structure, not as a guess about which framework produced them.
-export function walk(root: string, adapterExclusions: readonly string[]): Walk {
+export function walk(root: string, adapterExclusions: readonly string[], signal?: AbortSignal): Walk {
   const source: WalkedFile[] = [];
   const skipped: SkippedFile[] = [];
   const excludedDirectories: ExcludedDirectory[] = [];
-  visit(root, root, adapterExclusions, source, skipped, excludedDirectories);
+  visit(root, root, adapterExclusions, source, skipped, excludedDirectories, signal);
   source.sort((a, b) => compare(a.path, b.path));
   skipped.sort((a, b) => compare(a.path, b.path));
   excludedDirectories.sort((a, b) => compare(a.path, b.path));
@@ -46,10 +46,13 @@ function visit(
   source: WalkedFile[],
   skipped: SkippedFile[],
   excludedDirectories: ExcludedDirectory[],
+  signal?: AbortSignal,
 ): void {
+  if (signal?.aborted) throw new Error("Stopped.");
   const entries = fs.readdirSync(directory, { withFileTypes: true });
   entries.sort((a, b) => compare(a.name, b.name));
   for (const entry of entries) {
+    if (signal?.aborted) throw new Error("Stopped.");
     const absolute = path.join(directory, entry.name);
     const relative = relativePosix(root, absolute);
     if (entry.isSymbolicLink()) {
@@ -64,7 +67,7 @@ function visit(
         excludedDirectories.push({ path: relative, reason });
         continue;
       }
-      visit(root, absolute, adapterExclusions, source, skipped, excludedDirectories);
+      visit(root, absolute, adapterExclusions, source, skipped, excludedDirectories, signal);
       continue;
     }
     if (!entry.isFile()) {

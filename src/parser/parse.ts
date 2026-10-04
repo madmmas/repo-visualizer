@@ -25,10 +25,11 @@ type ResolvedTarget = {
 
 // Keep every import that was seen. An edge exists only when resolution landed
 // on a file that became a node. require() is not read in this phase.
-export function parseRepository(
+export async function parseRepository(
   directory: string,
   adapter: Adapter = noFramework,
-): ParseResult {
+  signal?: AbortSignal,
+): Promise<ParseResult> {
   const resolved = path.resolve(directory);
   if (!fs.existsSync(resolved)) {
     throw new Error(`Directory not found: ${resolved}`);
@@ -39,7 +40,7 @@ export function parseRepository(
   }
 
   const exclusions = adapter.excludedDirectories().map(normalizeExclusion);
-  const walked = walk(root, exclusions);
+  const walked = walk(root, exclusions, signal);
   const options = loadCompilerOptions(root);
   const project = new Project({
     compilerOptions: options,
@@ -52,6 +53,7 @@ export function parseRepository(
   const skippedByPath = new Map(skipped.map((file) => [file.path, file.reason]));
 
   for (const file of walked.source) {
+    await yieldToStop(signal);
     let buffer: Buffer;
     try {
       buffer = fs.readFileSync(file.absolute);
@@ -95,6 +97,7 @@ export function parseRepository(
   const resolvedEdges: Edge[] = [];
 
   for (const sourceFile of project.getSourceFiles()) {
+    await yieldToStop(signal);
     const from = relativeInside(root, sourceFile.getFilePath());
     if (!parsed.has(from)) continue;
     collectImports(sourceFile, (kind, specifier) => {
@@ -156,6 +159,12 @@ export function parseRepository(
   };
   assertResult(result);
   return result;
+}
+
+// The walk is synchronous, so a stop request cannot land until this yields.
+async function yieldToStop(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new Error("Stopped.");
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 function collectImports(

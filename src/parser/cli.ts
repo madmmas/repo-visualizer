@@ -3,15 +3,13 @@ import { parseRepository } from "./parse.ts";
 import { readResult, writeResult } from "./result.ts";
 import type { ParseResult } from "./types.ts";
 
-try {
-  main();
-} catch (error) {
+main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(message);
   process.exit(1);
-}
+});
 
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args[0] === "--read") {
     const file = args[1];
@@ -36,7 +34,7 @@ function main(): void {
   const directory = positional[0];
   if (!directory || positional.length !== 1) usage();
 
-  const result = parseRepository(directory);
+  const result = await parseRepository(directory);
   if (outFile) {
     writeResult(outFile, result);
     const readBack = readResult(outFile);
