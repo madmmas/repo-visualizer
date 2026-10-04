@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cartograph",
+  title: "RepoVisualizer",
   description: "A dependency map of a repository, drawn from its imports.",
 };
 

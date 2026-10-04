@@ -22,6 +22,14 @@
   --accent: #2563eb;
   --incoming: #15803d;
   --outgoing: #b45309;
+  --kind-ts: #6d28d9;
+  --kind-tsx: #be185d;
+  --kind-mts: #0e7490;
+  --kind-cts: #155e75;
+  --kind-js: #0f766e;
+  --kind-jsx: #9f1239;
+  --kind-mjs: #9d174d;
+  --kind-cjs: #6b21a8;
 }
 
 :root[data-theme="dark"] {
@@ -34,6 +42,14 @@
   --accent: #2563eb;
   --incoming: #4ade80;
   --outgoing: #fbbf24;
+  --kind-ts: #c4b5fd;
+  --kind-tsx: #f9a8d4;
+  --kind-mts: #67e8f9;
+  --kind-cts: #a5f3fc;
+  --kind-js: #5eead4;
+  --kind-jsx: #fecdd3;
+  --kind-mjs: #fda4af;
+  --kind-cjs: #d8b4fe;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,7 +63,28 @@
     --accent: #2563eb;
     --incoming: #4ade80;
     --outgoing: #fbbf24;
+    --kind-ts: #c4b5fd;
+    --kind-tsx: #f9a8d4;
+    --kind-mts: #67e8f9;
+    --kind-cts: #a5f3fc;
+    --kind-js: #5eead4;
+    --kind-jsx: #fecdd3;
+    --kind-mjs: #fda4af;
+    --kind-cjs: #d8b4fe;
   }
+}
+
+.react-flow__node-folder {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: var(--muted);
 }
 
 @theme inline {

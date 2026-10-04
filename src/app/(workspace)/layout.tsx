@@ -13,7 +13,7 @@ export default async function WorkspaceLayout({
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex min-h-9 shrink-0 items-center gap-3 border-b border-border px-3">
-        <span className="text-xs">Cartograph</span>
+        <span className="text-xs">RepoVisualizer</span>
         <OrganizationSwitcher
           hidePersonal
           afterCreateOrganizationUrl="/"
@@ -24,7 +24,7 @@ export default async function WorkspaceLayout({
           <UserButton />
         </div>
       </header>
-      <main className="min-h-0 flex-1">{children}</main>
+      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
     </div>
   );
 }
