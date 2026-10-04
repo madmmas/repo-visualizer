@@ -11,6 +11,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Edge, ParsedFile } from "@/parser/types";
+import { foldFiles } from "@/map/fold";
 import { buildScene, type SceneEdge, type SceneNode, type Selection } from "@/map/scene";
 import { FolderNode, type FolderFlowNode } from "./folder-node";
 import { MapActionsContext, type MapActions } from "./map-actions";
@@ -22,14 +23,27 @@ export function MapCanvas({
   files,
   edges,
   rootName,
+  selected,
+  onSelect,
+  selectFileRef,
 }: {
   files: readonly ParsedFile[];
   edges: readonly Edge[];
   rootName: string;
+  selected: Selection | null;
+  onSelect: (selection: Selection | null) => void;
+  selectFileRef: React.RefObject<(path: string) => void>;
 }) {
   return (
     <ReactFlowProvider>
-      <MapView files={files} edges={edges} rootName={rootName} />
+      <MapView
+        files={files}
+        edges={edges}
+        rootName={rootName}
+        selected={selected}
+        onSelect={onSelect}
+        selectFileRef={selectFileRef}
+      />
     </ReactFlowProvider>
   );
 }
@@ -38,13 +52,18 @@ function MapView({
   files,
   edges,
   rootName,
+  selected,
+  onSelect,
+  selectFileRef,
 }: {
   files: readonly ParsedFile[];
   edges: readonly Edge[];
   rootName: string;
+  selected: Selection | null;
+  onSelect: (selection: Selection | null) => void;
+  selectFileRef: React.RefObject<(path: string) => void>;
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const [selected, setSelected] = useState<Selection | null>(null);
   const [windows, setWindows] = useState<Readonly<Record<string, number>>>({});
   const [fit, setFit] = useState<{ path: string; token: number } | null>(null);
   const { getViewport, setViewport } = useReactFlow();
@@ -83,11 +102,11 @@ function MapView({
       event.preventDefault();
       const direction = event.key === "ArrowDown" ? 1 : -1;
       const next = stepSelection(scene.nodes, selected, direction);
-      if (next) setSelected(next);
+      if (next) onSelect(next);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [scene.nodes, selected]);
+  }, [scene.nodes, selected, onSelect]);
 
   // The bounds come from the scene after the folder opened. Zoom only ever drops.
   useEffect(() => {
@@ -115,9 +134,9 @@ function MapView({
       delete next[path];
       return next;
     });
-    setSelected({ kind: "node", path });
+    onSelect({ kind: "node", path });
     setFit((current) => ({ path, token: (current?.token ?? 0) + 1 }));
-  }, []);
+  }, [onSelect]);
 
   const closeNode = useCallback((path: string) => {
     setOpen((current) => {
@@ -132,12 +151,37 @@ function MapView({
       delete next[path];
       return next;
     });
-    setSelected({ kind: "node", path });
-  }, []);
+    onSelect({ kind: "node", path });
+  }, [onSelect]);
 
-  const selectFile = useCallback((path: string) => {
-    setSelected({ kind: "file", path });
-  }, []);
+  const nodeOf = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of foldFiles(files, edges).nodes) {
+      for (const file of node.files) map.set(file.path, node.path);
+    }
+    return map;
+  }, [files, edges]);
+
+  const selectFile = useCallback(
+    (path: string) => {
+      const node = nodeOf.get(path);
+      if (node && !open.has(node)) {
+        setOpen((current) => {
+          if (current.has(node)) return current;
+          const next = new Set(current);
+          next.add(node);
+          return next;
+        });
+        setFit((current) => ({ path: node, token: (current?.token ?? 0) + 1 }));
+      }
+      onSelect({ kind: "file", path });
+    },
+    [nodeOf, open, onSelect],
+  );
+  // The pane lives outside this view, so it calls the same handler through the ref.
+  useEffect(() => {
+    selectFileRef.current = selectFile;
+  }, [selectFile, selectFileRef]);
 
   const setWindow = useCallback((path: string, start: number) => {
     setWindows((current) => {
@@ -178,7 +222,7 @@ function MapView({
           deleteKeyCode={null}
           selectionKeyCode={null}
           multiSelectionKeyCode={null}
-          onPaneClick={() => setSelected(null)}
+          onPaneClick={() => onSelect(null)}
         />
       </div>
     </MapActionsContext.Provider>
@@ -247,6 +291,7 @@ function toFlowNode(node: SceneNode): FolderFlowNode {
       dimmed: node.dimmed,
       swatch: node.swatch,
       rows: node.rows,
+      paths: node.paths,
       windowStart: node.windowStart,
     },
   };

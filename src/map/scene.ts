@@ -32,6 +32,7 @@ export type SceneNode = {
   dimmed: boolean;
   swatch: string | null;
   rows: SceneRow[];
+  paths: string[];
   windowStart: number;
 };
 
@@ -123,6 +124,7 @@ export function buildScene(input: {
       selected: selectedNode,
       dimmed: lit.nodes !== null && !lit.nodes.has(item.node.path),
       swatch,
+      paths: item.node.files.map((file) => file.path),
       windowStart: item.start,
       rows: item.isOpen
         ? item.node.files.map((file) => ({

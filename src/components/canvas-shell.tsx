@@ -9,7 +9,7 @@ export function CanvasShell({
   detail: React.ReactNode;
 }) {
   return (
-    <div className="grid h-full min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)_16rem] grid-rows-[minmax(0,1fr)]">
+    <div className="grid h-full min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)_20rem] grid-rows-[minmax(0,1fr)]">
       <aside
         aria-label="Categories"
         className="min-h-0 overflow-auto border-r border-border bg-surface"
@@ -17,7 +17,7 @@ export function CanvasShell({
         {rail}
       </aside>
       <div className="h-full min-h-0 min-w-0">{map}</div>
-      <aside aria-label="Details" className="min-h-0 overflow-auto border-l border-border bg-surface">
+      <aside aria-label="Details" className="min-h-0 min-w-0 overflow-auto border-l border-border bg-surface">
         {detail}
       </aside>
     </div>

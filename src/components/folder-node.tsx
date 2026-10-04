@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef } from "react";
 import { HEADER_H, ROW_H, ROW_LIMIT } from "@/map/metrics";
 import type { SceneRow } from "@/map/scene";
 import { useMapActions } from "./map-actions";
+import { useHighlight } from "./map-highlight";
 
 export type FolderNodeData = {
   path: string;
@@ -17,6 +18,7 @@ export type FolderNodeData = {
   dimmed: boolean;
   swatch: string | null;
   rows: SceneRow[];
+  paths: string[];
   windowStart: number;
 };
 
@@ -24,26 +26,36 @@ export type FolderFlowNode = Node<FolderNodeData, "folder">;
 
 const handleClass = "!size-px !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0";
 
+const lit = "bg-[color-mix(in_srgb,var(--accent)_16%,transparent)]";
+
 export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
   const actions = useMapActions();
+  const { hovered, setHovered, clearHovered } = useHighlight();
   const listRef = useRef<HTMLUListElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
   const selectedPath = data.rows.find((row) => row.selected)?.path ?? null;
+  const focusPath =
+    hovered !== null && data.paths.includes(hovered) ? hovered : selectedPath;
 
   useLayoutEffect(() => {
     const list = listRef.current;
-    if (!list || !selectedPath) return;
-    const row = list.querySelector<HTMLElement>(`[data-path="${CSS.escape(selectedPath)}"]`);
+    if (!list || !focusPath) return;
+    const row = list.querySelector<HTMLElement>(`[data-path="${CSS.escape(focusPath)}"]`);
     if (!row) return;
     const top = row.offsetTop;
     const bottom = top + ROW_H;
     if (top < list.scrollTop) list.scrollTop = top;
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
-  }, [selectedPath]);
-  const frame = data.selected
-    ? "shadow-[inset_0_0_0_1px_var(--accent)]"
-    : "shadow-[inset_0_0_0_1px_var(--border)]";
-  const dimmed = data.dimmed ? "opacity-30" : "";
+  }, [focusPath]);
+  const collapsedLit =
+    !data.open &&
+    hovered !== null &&
+    (hovered === data.path || data.paths.includes(hovered));
+  const frame =
+    data.selected || collapsedLit
+      ? "shadow-[inset_0_0_0_1px_var(--accent)]"
+      : "shadow-[inset_0_0_0_1px_var(--border)]";
+  const dimmed = data.dimmed && !collapsedLit ? "opacity-30" : "";
 
   if (!data.open) {
     return (
@@ -53,6 +65,9 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
           type="button"
           className="flex h-full w-full items-start gap-1.5 px-2 py-1 text-left"
           aria-expanded={false}
+          data-path={data.path}
+          onMouseEnter={() => setHovered(data.path)}
+          onMouseLeave={() => clearHovered(data.path)}
           onClick={(event) => {
             event.stopPropagation();
             actions.openNode(data.path);
@@ -77,8 +92,13 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
       <div className="relative shrink-0" style={{ height: HEADER_H }}>
         <button
           type="button"
-          className="flex h-full w-full items-center gap-2 px-2 text-left text-xs"
           aria-expanded={true}
+          data-path={data.path}
+          className={`flex h-full w-full items-center gap-2 px-2 text-left text-xs ${
+            hovered === data.path ? lit : ""
+          }`}
+          onMouseEnter={() => setHovered(data.path)}
+          onMouseLeave={() => clearHovered(data.path)}
           onClick={(event) => {
             event.stopPropagation();
             actions.closeNode(data.path);
@@ -108,6 +128,7 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
         ) : null}
         {data.rows.map((row, index) => {
           const anchored = index >= data.windowStart && index < data.windowStart + ROW_LIMIT;
+          const rowLit = hovered === row.path;
           return (
             <li key={row.path} data-path={row.path} className="relative" style={{ height: ROW_H }}>
               {anchored ? (
@@ -121,9 +142,11 @@ export function FolderNode({ id, data }: NodeProps<FolderFlowNode>) {
               <button
                 type="button"
                 className={`flex h-full w-full items-center gap-1.5 px-2 text-left ${
-                  row.selected ? "bg-[color-mix(in_srgb,var(--accent)_16%,transparent)]" : ""
-                } ${row.dimmed && !data.dimmed ? "opacity-30" : ""}`}
+                  row.selected || rowLit ? lit : ""
+                } ${row.dimmed && !data.dimmed && !rowLit ? "opacity-30" : ""}`}
                 aria-pressed={row.selected}
+                onMouseEnter={() => setHovered(row.path)}
+                onMouseLeave={() => clearHovered(row.path)}
                 onClick={(event) => {
                   event.stopPropagation();
                   actions.selectFile(row.path);
